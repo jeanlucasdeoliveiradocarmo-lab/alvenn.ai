@@ -26,12 +26,15 @@ export default function GradientBlinds({
       alpha: true,
       dpr: Math.min(window.devicePixelRatio, 1.5),
     });
+
     const gl = renderer.gl;
+
     el.appendChild(gl.canvas);
 
     const geometry = new Triangle(gl);
     const firstColor = gradientColors[0] ?? '#02030a';
     const lastColor = gradientColors.at(-1) ?? '#5ba9ff';
+
     const program = new Program(gl, {
       vertex: V,
       fragment: F,
@@ -43,11 +46,13 @@ export default function GradientBlinds({
         count: { value: blindCount },
       },
     });
+
     const mesh = new Mesh(gl, { geometry, program });
 
     const resize = () => {
       renderer.setSize(el.clientWidth, el.clientHeight);
     };
+
     resize();
 
     const resizeObserver = new ResizeObserver(resize);
@@ -55,28 +60,34 @@ export default function GradientBlinds({
 
     const move = (event: PointerEvent) => {
       const rect = el.getBoundingClientRect();
+
       program.uniforms.mouse.value = [
         (event.clientX - rect.left) / rect.width,
         1 - (event.clientY - rect.top) / rect.height,
       ];
     };
+
     el.addEventListener('pointermove', move);
 
     let animationFrameId = 0;
+
     const loop = (time: number) => {
       program.uniforms.time.value = time * 0.001;
       renderer.render({ scene: mesh });
       animationFrameId = requestAnimationFrame(loop);
     };
+
     animationFrameId = requestAnimationFrame(loop);
 
     return () => {
       cancelAnimationFrame(animationFrameId);
       resizeObserver.disconnect();
       el.removeEventListener('pointermove', move);
+
       if (gl.canvas.parentNode === el) {
         el.removeChild(gl.canvas);
       }
+
       gl.getExtension('WEBGL_lose_context')?.loseContext();
     };
   }, [gradientColors, blindCount]);
