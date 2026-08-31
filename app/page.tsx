@@ -1,11 +1,17 @@
 'use client';
 import Image from 'next/image';
+import dynamic from 'next/dynamic';
 import { addDoc, collection, serverTimestamp } from 'firebase/firestore';
-import { type FormEvent, useState } from 'react';
+import { type ComponentType, type CSSProperties, type FormEvent, useState } from 'react';
 import { db } from '@/lib/firebase';
-import ColorBends from './components/ColorBends';
-import Aurora from './components/Aurora';
-import GradientBlinds from './components/GradientBlinds';
+
+type ColorBendsProps={className?:string;style?:CSSProperties;rotation?:number;speed?:number;colors?:string[];transparent?:boolean;autoRotate?:number;scale?:number;frequency?:number;warpStrength?:number;mouseInfluence?:number;parallax?:number;noise?:number;iterations?:number;intensity?:number;bandWidth?:number};
+type AuroraProps={colorStops?:string[];speed?:number;blend?:number;amplitude?:number};
+type GradientBlindsProps={gradientColors?:string[];blindCount?:number};
+
+const ColorBends = dynamic(() => import('./components/ColorBends'), { ssr: false }) as ComponentType<ColorBendsProps>;
+const Aurora = dynamic(() => import('./components/Aurora'), { ssr: false }) as ComponentType<AuroraProps>;
+const GradientBlinds = dynamic(() => import('./components/GradientBlinds'), { ssr: false }) as ComponentType<GradientBlindsProps>;
 
 const WA = 'https://wa.me/5511999999999?text=Ol%C3%A1%2C%20quero%20criar%20meu%20site%20com%20a%20Alvenn.';
 const solutions = [['Design premium','Uma estética exclusiva, construída para posicionar sua marca acima da média.'],['Experiência','Navegação intuitiva e envolvente em cada tela, do primeiro clique ao contato.'],['Conversão','Estratégia, hierarquia e chamadas pensadas para transformar visitas em oportunidades.'],['Performance','Carregamento rápido, código otimizado e a melhor experiência em qualquer dispositivo.']];
