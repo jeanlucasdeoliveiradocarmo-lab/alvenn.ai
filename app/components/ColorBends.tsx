@@ -6,6 +6,7 @@ import * as THREE from 'three';
 import './ColorBends.css';
 
 const MAX_COLORS = 8;
+const DEFAULT_COLORS: string[] = [];
 
 const fragmentShader = `#define MAX_COLORS 8
 uniform vec2 uCanvas;uniform float uTime,uSpeed;uniform vec2 uRot;uniform int uColorCount;uniform vec3 uColors[MAX_COLORS];uniform int uTransparent;uniform float uScale,uFrequency,uWarpStrength;uniform vec2 uPointer;uniform float uMouseInfluence,uParallax,uNoise;uniform int uIterations;uniform float uIntensity,uBandWidth;varying vec2 vUv;
@@ -37,7 +38,7 @@ export default function ColorBends({
   style,
   rotation = 90,
   speed = 0.2,
-  colors = [],
+  colors = DEFAULT_COLORS,
   transparent = true,
   autoRotate = 0,
   scale = 1,
@@ -128,8 +129,6 @@ export default function ColorBends({
 
     el.appendChild(renderer.domElement);
 
-    const clock = new THREE.Clock();
-
     const resize = () => {
       const width = el.clientWidth || 1;
       const height = el.clientHeight || 1;
@@ -147,9 +146,22 @@ export default function ColorBends({
       window.addEventListener('resize', resize);
     }
 
-    const loop = () => {
-      const deltaTime = clock.getDelta();
-      const elapsedTime = clock.elapsedTime;
+    let isIntersecting = false;
+    let elapsedTime = 0;
+    let previousFrameTime: number | null = null;
+
+    const loop = (time: number) => {
+      animationFrameRef.current = null;
+
+      if (isIntersecting !== true) return;
+
+      const deltaTime =
+        previousFrameTime === null
+          ? 0
+          : (time - previousFrameTime) * 0.001;
+
+      previousFrameTime = time;
+      elapsedTime += deltaTime;
 
       material.uniforms.uTime.value = elapsedTime;
 
@@ -171,15 +183,49 @@ export default function ColorBends({
 
       material.uniforms.uPointer.value.copy(pointerCurrentRef.current);
       renderer.render(scene, camera);
-      animationFrameRef.current = requestAnimationFrame(loop);
+
+      if (isIntersecting === true) {
+        animationFrameRef.current = requestAnimationFrame(loop);
+      }
     };
 
-    animationFrameRef.current = requestAnimationFrame(loop);
+    const startAnimation = () => {
+      if (
+        isIntersecting === true &&
+        animationFrameRef.current === null
+      ) {
+        previousFrameTime = null;
+        animationFrameRef.current = requestAnimationFrame(loop);
+      }
+    };
 
-    return () => {
+    const stopAnimation = () => {
       if (animationFrameRef.current !== null) {
         cancelAnimationFrame(animationFrameRef.current);
+        animationFrameRef.current = null;
       }
+
+      previousFrameTime = null;
+    };
+
+    const intersectionObserver = new IntersectionObserver(
+      ([entry]) => {
+        isIntersecting = entry?.isIntersecting === true;
+
+        if (isIntersecting) {
+          startAnimation();
+        } else {
+          stopAnimation();
+        }
+      },
+      { threshold: 0.01 },
+    );
+
+    intersectionObserver.observe(el);
+
+    return () => {
+      intersectionObserver.disconnect();
+      stopAnimation();
 
       if (resizeObserverRef.current) {
         resizeObserverRef.current.disconnect();
