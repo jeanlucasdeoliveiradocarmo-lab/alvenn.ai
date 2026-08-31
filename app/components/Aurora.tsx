@@ -1,5 +1,85 @@
 "use client";
 import {useEffect,useRef} from 'react';import{Renderer,Program,Mesh,Color,Triangle}from'ogl';import'./webgl.css';
-const V=`#version 300 es\nin vec2 position;void main(){gl_Position=vec4(position,0.,1.);}`;
+const V=`#version 300 es\nin vec2 position;void main(){gl_Position=vec4(position,0.,1.);}`;"use client";
+
+import { useEffect, useRef } from 'react';
+import { Color, Mesh, Program, Renderer, Triangle } from 'ogl';
+import './webgl.css';
+
+const V = `#version 300 es\nin vec2 position;void main(){gl_Position=vec4(position,0.,1.);}`;
+const F = `#version 300 es\nprecision highp float;uniform float uTime;uniform vec2 uResolution;uniform vec3 c0;uniform vec3 c1;uniform vec3 c2;out vec4 fragColor;void main(){vec2 uv=gl_FragCoord.xy/uResolution;float wave=.48+.12*sin(uv.x*7.+uTime)+.07*sin(uv.x*13.-uTime*.7);float a=smoothstep(wave-.28,wave+.08,uv.y)*smoothstep(1.,.35,uv.y);vec3 c=mix(c0,c1,uv.x);c=mix(c,c2,.5+.5*sin(uv.x*5.+uTime));fragColor=vec4(c*a,a);}`;
+
+type AuroraProps = {
+  colorStops?: string[];
+  speed?: number;
+  blend?: number;
+  amplitude?: number;
+};
+
+export default function Aurora({
+  colorStops = ['#01061b', '#0b42d2', '#55aaff'],
+  speed = 0.5,
+}: AuroraProps) {
+  const containerRef = useRef<HTMLDivElement>(null);
+
+  useEffect(() => {
+    const el = containerRef.current as HTMLDivElement | null;
+    if (!el) return;
+
+    const renderer = new Renderer({
+      alpha: true,
+      dpr: Math.min(window.devicePixelRatio, 1.5),
+    });
+    const gl = renderer.gl;
+    el.appendChild(gl.canvas);
+
+    const geometry = new Triangle(gl);
+    const colors = colorStops.map((color) => new Color(color));
+    const program = new Program(gl, {
+      vertex: V,
+      fragment: F,
+      uniforms: {
+        uTime: { value: 0 },
+        uResolution: { value: [1, 1] },
+        c0: { value: colors[0] },
+        c1: { value: colors[1] },
+        c2: { value: colors[2] },
+      },
+    });
+    const mesh = new Mesh(gl, { geometry, program });
+
+    const resize = () => {
+      renderer.setSize(el.clientWidth, el.clientHeight);
+      program.uniforms.uResolution.value = [
+        gl.drawingBufferWidth,
+        gl.drawingBufferHeight,
+      ];
+    };
+
+    resize();
+    const resizeObserver = new ResizeObserver(resize);
+    resizeObserver.observe(el);
+
+    let animationFrameId = 0;
+    const loop = (time: number) => {
+      program.uniforms.uTime.value = time * 0.001 * speed;
+      renderer.render({ scene: mesh });
+      animationFrameId = requestAnimationFrame(loop);
+    };
+    animationFrameId = requestAnimationFrame(loop);
+
+    return () => {
+      cancelAnimationFrame(animationFrameId);
+      resizeObserver.disconnect();
+      if (gl.canvas.parentNode === el) {
+        el.removeChild(gl.canvas);
+      }
+      gl.getExtension('WEBGL_lose_context')?.loseContext();
+    };
+  }, [colorStops, speed]);
+
+  return <div ref={containerRef} className="webgl-container" />;
+}
+
 const F=`#version 300 es\nprecision highp float;uniform float uTime;uniform vec2 uResolution;uniform vec3 c0;uniform vec3 c1;uniform vec3 c2;out vec4 fragColor;void main(){vec2 uv=gl_FragCoord.xy/uResolution;float wave=.48+.12*sin(uv.x*7.+uTime)+.07*sin(uv.x*13.-uTime*.7);float a=smoothstep(wave-.28,wave+.08,uv.y)*smoothstep(1.,.35,uv.y);vec3 c=mix(c0,c1,uv.x);c=mix(c,c2,.5+.5*sin(uv.x*5.+uTime));fragColor=vec4(c*a,a);}`;
 export default function Aurora({colorStops=['#01061b','#0b42d2','#55aaff'],speed=.5}){const ref=useRef(null);useEffect(()=>{const el=ref.current;if(!el)return;const renderer=new Renderer({alpha:true,dpr:Math.min(devicePixelRatio,1.5)}),gl=renderer.gl;el.appendChild(gl.canvas);const geometry=new Triangle(gl),cs=colorStops.map(x=>new Color(x));const program=new Program(gl,{vertex:V,fragment:F,uniforms:{uTime:{value:0},uResolution:{value:[1,1]},c0:{value:cs[0]},c1:{value:cs[1]},c2:{value:cs[2]}}}),mesh=new Mesh(gl,{geometry,program});const resize=()=>{renderer.setSize(el.clientWidth,el.clientHeight);program.uniforms.uResolution.value=[gl.drawingBufferWidth,gl.drawingBufferHeight]};resize();const ro=new ResizeObserver(resize);ro.observe(el);let id;const loop=t=>{program.uniforms.uTime.value=t*.001*speed;renderer.render({scene:mesh});id=requestAnimationFrame(loop)};id=requestAnimationFrame(loop);return()=>{cancelAnimationFrame(id);ro.disconnect();gl.canvas.remove();gl.getExtension('WEBGL_lose_context')?.loseContext()}},[colorStops,speed]);return <div ref={ref} className="webgl-container"/>}
