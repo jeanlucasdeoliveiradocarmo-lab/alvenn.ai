@@ -6,6 +6,7 @@ import './webgl.css';
 
 const V = `attribute vec2 position;attribute vec2 uv;varying vec2 vUv;void main(){vUv=uv;gl_Position=vec4(position,0.,1.);}`;
 const F = `precision highp float;varying vec2 vUv;uniform float time;uniform vec2 mouse;uniform vec3 ca;uniform vec3 cb;uniform float count;float hash(vec2 p){return fract(sin(dot(p,vec2(12.9898,78.233)))*43758.5453);}void main(){float stripe=fract(vUv.x*count);float edge=smoothstep(.05,.55,stripe);float spot=smoothstep(.65,0.,distance(vUv,mouse));vec3 grad=mix(ca,cb,vUv.x);vec3 col=grad*(.15+edge*.65+spot*.7);col+=(hash(gl_FragCoord.xy+time)-.5)*.05;gl_FragColor=vec4(col,1.);}`;
+const DEFAULT_GRADIENT_COLORS = ['#02030a', '#5ba9ff'];
 
 type GradientBlindsProps = {
   gradientColors?: string[];
@@ -13,7 +14,7 @@ type GradientBlindsProps = {
 };
 
 export default function GradientBlinds({
-  gradientColors = ['#02030a', '#5ba9ff'],
+  gradientColors = DEFAULT_GRADIENT_COLORS,
   blindCount = 10,
 }: GradientBlindsProps) {
   const containerRef = useRef<HTMLDivElement>(null);
@@ -28,7 +29,6 @@ export default function GradientBlinds({
     });
 
     const gl = renderer.gl;
-
     el.appendChild(gl.canvas);
 
     const geometry = new Triangle(gl);
@@ -69,18 +69,64 @@ export default function GradientBlinds({
 
     el.addEventListener('pointermove', move);
 
-    let animationFrameId = 0;
+    let animationFrameId: number | null = null;
+    let isIntersecting = false;
+    let elapsedTime = 0;
+    let previousFrameTime: number | null = null;
 
     const loop = (time: number) => {
-      program.uniforms.time.value = time * 0.001;
+      animationFrameId = null;
+
+      if (isIntersecting !== true) return;
+
+      if (previousFrameTime !== null) {
+        elapsedTime += (time - previousFrameTime) * 0.001;
+      }
+
+      previousFrameTime = time;
+
+      program.uniforms.time.value = elapsedTime;
       renderer.render({ scene: mesh });
-      animationFrameId = requestAnimationFrame(loop);
+
+      if (isIntersecting === true) {
+        animationFrameId = requestAnimationFrame(loop);
+      }
     };
 
-    animationFrameId = requestAnimationFrame(loop);
+    const startAnimation = () => {
+      if (isIntersecting === true && animationFrameId === null) {
+        previousFrameTime = null;
+        animationFrameId = requestAnimationFrame(loop);
+      }
+    };
+
+    const stopAnimation = () => {
+      if (animationFrameId !== null) {
+        cancelAnimationFrame(animationFrameId);
+        animationFrameId = null;
+      }
+
+      previousFrameTime = null;
+    };
+
+    const intersectionObserver = new IntersectionObserver(
+      ([entry]) => {
+        isIntersecting = entry?.isIntersecting === true;
+
+        if (isIntersecting) {
+          startAnimation();
+        } else {
+          stopAnimation();
+        }
+      },
+      { threshold: 0.01 },
+    );
+
+    intersectionObserver.observe(el);
 
     return () => {
-      cancelAnimationFrame(animationFrameId);
+      intersectionObserver.disconnect();
+      stopAnimation();
       resizeObserver.disconnect();
       el.removeEventListener('pointermove', move);
 
