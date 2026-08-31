@@ -1,5 +1,85 @@
 "use client";
-import{useEffect,useRef}from'react';import{Renderer,Program,Mesh,Color,Triangle}from'ogl';import'./webgl.css';
-const V=`attribute vec2 position;attribute vec2 uv;varying vec2 vUv;void main(){vUv=uv;gl_Position=vec4(position,0.,1.);}`;
-const F=`precision highp float;varying vec2 vUv;uniform float time;uniform vec2 mouse;uniform vec3 ca;uniform vec3 cb;uniform float count;float hash(vec2 p){return fract(sin(dot(p,vec2(12.9898,78.233)))*43758.5453);}void main(){float stripe=fract(vUv.x*count);float edge=smoothstep(.05,.55,stripe);float spot=smoothstep(.65,0.,distance(vUv,mouse));vec3 grad=mix(ca,cb,vUv.x);vec3 col=grad*(.15+edge*.65+spot*.7);col+=(hash(gl_FragCoord.xy+time)-.5)*.05;gl_FragColor=vec4(col,1.);}`;
-export default function GradientBlinds({gradientColors=['#02030a','#5ba9ff'],blindCount=10}){const ref=useRef(null);useEffect(()=>{const el=ref.current;if(!el)return;const renderer=new Renderer({alpha:true,dpr:Math.min(devicePixelRatio,1.5)}),gl=renderer.gl;el.appendChild(gl.canvas);const geometry=new Triangle(gl),program=new Program(gl,{vertex:V,fragment:F,uniforms:{time:{value:0},mouse:{value:[.55,.5]},ca:{value:new Color(gradientColors[0])},cb:{value:new Color(gradientColors.at(-1))},count:{value:blindCount}}}),mesh=new Mesh(gl,{geometry,program});const resize=()=>renderer.setSize(el.clientWidth,el.clientHeight);resize();const ro=new ResizeObserver(resize);ro.observe(el);const move=e=>{const r=el.getBoundingClientRect();program.uniforms.mouse.value=[(e.clientX-r.left)/r.width,1-(e.clientY-r.top)/r.height]};el.addEventListener('pointermove',move);let id;const loop=t=>{program.uniforms.time.value=t*.001;renderer.render({scene:mesh});id=requestAnimationFrame(loop)};id=requestAnimationFrame(loop);return()=>{cancelAnimationFrame(id);ro.disconnect();el.removeEventListener('pointermove',move);gl.canvas.remove();gl.getExtension('WEBGL_lose_context')?.loseContext()}},[gradientColors,blindCount]);return <div ref={ref} className="webgl-container"/>}
+
+import { useEffect, useRef } from 'react';
+import { Color, Mesh, Program, Renderer, Triangle } from 'ogl';
+import './webgl.css';
+
+const V = `attribute vec2 position;attribute vec2 uv;varying vec2 vUv;void main(){vUv=uv;gl_Position=vec4(position,0.,1.);}`;
+const F = `precision highp float;varying vec2 vUv;uniform float time;uniform vec2 mouse;uniform vec3 ca;uniform vec3 cb;uniform float count;float hash(vec2 p){return fract(sin(dot(p,vec2(12.9898,78.233)))*43758.5453);}void main(){float stripe=fract(vUv.x*count);float edge=smoothstep(.05,.55,stripe);float spot=smoothstep(.65,0.,distance(vUv,mouse));vec3 grad=mix(ca,cb,vUv.x);vec3 col=grad*(.15+edge*.65+spot*.7);col+=(hash(gl_FragCoord.xy+time)-.5)*.05;gl_FragColor=vec4(col,1.);}`;
+
+type GradientBlindsProps = {
+  gradientColors?: string[];
+  blindCount?: number;
+};
+
+export default function GradientBlinds({
+  gradientColors = ['#02030a', '#5ba9ff'],
+  blindCount = 10,
+}: GradientBlindsProps) {
+  const containerRef = useRef<HTMLDivElement>(null);
+
+  useEffect(() => {
+    const el = containerRef.current as HTMLDivElement | null;
+    if (!el) return;
+
+    const renderer = new Renderer({
+      alpha: true,
+      dpr: Math.min(window.devicePixelRatio, 1.5),
+    });
+    const gl = renderer.gl;
+    el.appendChild(gl.canvas);
+
+    const geometry = new Triangle(gl);
+    const firstColor = gradientColors[0] ?? '#02030a';
+    const lastColor = gradientColors.at(-1) ?? '#5ba9ff';
+    const program = new Program(gl, {
+      vertex: V,
+      fragment: F,
+      uniforms: {
+        time: { value: 0 },
+        mouse: { value: [0.55, 0.5] },
+        ca: { value: new Color(firstColor) },
+        cb: { value: new Color(lastColor) },
+        count: { value: blindCount },
+      },
+    });
+    const mesh = new Mesh(gl, { geometry, program });
+
+    const resize = () => {
+      renderer.setSize(el.clientWidth, el.clientHeight);
+    };
+    resize();
+
+    const resizeObserver = new ResizeObserver(resize);
+    resizeObserver.observe(el);
+
+    const move = (event: PointerEvent) => {
+      const rect = el.getBoundingClientRect();
+      program.uniforms.mouse.value = [
+        (event.clientX - rect.left) / rect.width,
+        1 - (event.clientY - rect.top) / rect.height,
+      ];
+    };
+    el.addEventListener('pointermove', move);
+
+    let animationFrameId = 0;
+    const loop = (time: number) => {
+      program.uniforms.time.value = time * 0.001;
+      renderer.render({ scene: mesh });
+      animationFrameId = requestAnimationFrame(loop);
+    };
+    animationFrameId = requestAnimationFrame(loop);
+
+    return () => {
+      cancelAnimationFrame(animationFrameId);
+      resizeObserver.disconnect();
+      el.removeEventListener('pointermove', move);
+      if (gl.canvas.parentNode === el) {
+        el.removeChild(gl.canvas);
+      }
+      gl.getExtension('WEBGL_lose_context')?.loseContext();
+    };
+  }, [gradientColors, blindCount]);
+
+  return <div ref={containerRef} className="webgl-container" />;
+}
