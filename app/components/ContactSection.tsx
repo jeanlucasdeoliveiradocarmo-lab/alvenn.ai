@@ -118,6 +118,50 @@ export default function ContactSection() {
             />
           </label>
 
+          <label
+            style={{
+              display: 'flex',
+              alignItems: 'flex-start',
+              gap: '12px',
+              margin: '0 0 18px',
+              color: '#8f96a6',
+              fontSize: '10px',
+              lineHeight: 1.7,
+              letterSpacing: 'normal',
+              textTransform: 'none',
+            }}
+          >
+            <input
+              name="consentimentoLgpd"
+              type="checkbox"
+              required
+              style={{
+                width: '16px',
+                height: '16px',
+                flex: '0 0 auto',
+                margin: '2px 0 0',
+                padding: 0,
+                border: 0,
+                accentColor: '#6033ff',
+                cursor: 'pointer',
+              }}
+            />
+
+            <span>
+              Concordo com o tratamento dos meus dados pessoais para fins de
+              contato comercial e aceito a{' '}
+              <Link
+                href="/politica-de-privacidade"
+                target="_blank"
+                rel="noopener noreferrer"
+                className="underline underline-offset-4 transition-colors hover:text-[#6033ff]"
+              >
+                Política de Privacidade e Termos de Uso
+              </Link>
+              .
+            </span>
+          </label>
+
           <button
             className="button button-light"
             type="submit"
@@ -126,40 +170,13 @@ export default function ContactSection() {
             {loading ? 'Enviando...' : 'Criar meu projeto'} <Arrow />
           </button>
 
-          <p
-            style={{
-              margin: '16px 0 0',
-              color: '#8f96a6',
-              fontSize: '10px',
-              lineHeight: 1.7,
-            }}
-          >
-            Ao enviar este formulário, você concorda com o tratamento dos seus
-            dados pessoais para fins de contato comercial, conforme a nossa{' '}
-            <Link
-              href="/politica-de-privacidade"
-              className="underline underline-offset-4 transition-colors hover:text-[#6033ff]"
-            >
-              Política de Privacidade
-            </Link>{' '}
-            e{' '}
-            <Link
-              href="/termos"
-              className="underline underline-offset-4 transition-colors hover:text-[#6033ff]"
-            >
-              Termos de Uso
-            </Link>
-            .
-          </p>
-
           {feedback ? (
             <p
               role="status"
               aria-live="polite"
               style={{
                 margin: '18px 0 0',
-                color:
-                  feedback.type === 'success' ? '#8de8ae' : '#ff9aa8',
+                color: feedback.type === 'success' ? '#8de8ae' : '#ff9aa8',
                 lineHeight: 1.6,
               }}
             >
