@@ -6,6 +6,7 @@ import './webgl.css';
 
 const V = `#version 300 es\nin vec2 position;void main(){gl_Position=vec4(position,0.,1.);}`;
 const F = `#version 300 es\nprecision highp float;uniform float uTime;uniform vec2 uResolution;uniform vec3 c0;uniform vec3 c1;uniform vec3 c2;out vec4 fragColor;void main(){vec2 uv=gl_FragCoord.xy/uResolution;float wave=.48+.12*sin(uv.x*7.+uTime)+.07*sin(uv.x*13.-uTime*.7);float a=smoothstep(wave-.28,wave+.08,uv.y)*smoothstep(1.,.35,uv.y);vec3 c=mix(c0,c1,uv.x);c=mix(c,c2,.5+.5*sin(uv.x*5.+uTime));fragColor=vec4(c*a,a);}`;
+const DEFAULT_COLOR_STOPS = ['#01061b', '#0b42d2', '#55aaff'];
 
 type AuroraProps = {
   colorStops?: string[];
@@ -15,7 +16,7 @@ type AuroraProps = {
 };
 
 export default function Aurora({
-  colorStops = ['#01061b', '#0b42d2', '#55aaff'],
+  colorStops = DEFAULT_COLOR_STOPS,
   speed = 0.5,
 }: AuroraProps) {
   const containerRef = useRef<HTMLDivElement>(null);
@@ -28,8 +29,8 @@ export default function Aurora({
       alpha: true,
       dpr: Math.min(window.devicePixelRatio, 1.5),
     });
-    const gl = renderer.gl;
 
+    const gl = renderer.gl;
     el.appendChild(gl.canvas);
 
     const geometry = new Triangle(gl);
@@ -62,18 +63,64 @@ export default function Aurora({
     const resizeObserver = new ResizeObserver(resize);
     resizeObserver.observe(el);
 
-    let animationFrameId = 0;
+    let animationFrameId: number | null = null;
+    let isIntersecting = false;
+    let elapsedTime = 0;
+    let previousFrameTime: number | null = null;
 
     const loop = (time: number) => {
-      program.uniforms.uTime.value = time * 0.001 * speed;
+      animationFrameId = null;
+
+      if (isIntersecting !== true) return;
+
+      if (previousFrameTime !== null) {
+        elapsedTime += (time - previousFrameTime) * 0.001;
+      }
+
+      previousFrameTime = time;
+
+      program.uniforms.uTime.value = elapsedTime * speed;
       renderer.render({ scene: mesh });
-      animationFrameId = requestAnimationFrame(loop);
+
+      if (isIntersecting === true) {
+        animationFrameId = requestAnimationFrame(loop);
+      }
     };
 
-    animationFrameId = requestAnimationFrame(loop);
+    const startAnimation = () => {
+      if (isIntersecting === true && animationFrameId === null) {
+        previousFrameTime = null;
+        animationFrameId = requestAnimationFrame(loop);
+      }
+    };
+
+    const stopAnimation = () => {
+      if (animationFrameId !== null) {
+        cancelAnimationFrame(animationFrameId);
+        animationFrameId = null;
+      }
+
+      previousFrameTime = null;
+    };
+
+    const intersectionObserver = new IntersectionObserver(
+      ([entry]) => {
+        isIntersecting = entry?.isIntersecting === true;
+
+        if (isIntersecting) {
+          startAnimation();
+        } else {
+          stopAnimation();
+        }
+      },
+      { threshold: 0.01 },
+    );
+
+    intersectionObserver.observe(el);
 
     return () => {
-      cancelAnimationFrame(animationFrameId);
+      intersectionObserver.disconnect();
+      stopAnimation();
       resizeObserver.disconnect();
 
       if (gl.canvas.parentNode === el) {
