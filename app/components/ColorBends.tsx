@@ -79,6 +79,7 @@ export default function ColorBends({
       { length: MAX_COLORS },
       () => new THREE.Vector3(),
     );
+
     const material = new THREE.ShaderMaterial({
       vertexShader,
       fragmentShader,
@@ -104,6 +105,7 @@ export default function ColorBends({
       premultipliedAlpha: true,
       transparent: true,
     });
+
     materialRef.current = material;
     scene.add(new THREE.Mesh(geometry, material));
 
@@ -112,24 +114,30 @@ export default function ColorBends({
       powerPreference: 'high-performance',
       alpha: true,
     });
+
     rendererRef.current = renderer;
     renderer.outputColorSpace = THREE.SRGBColorSpace;
     renderer.setPixelRatio(Math.min(window.devicePixelRatio || 1, 2));
     renderer.setClearColor(0, transparent ? 0 : 1);
+
     Object.assign(renderer.domElement.style, {
       width: '100%',
       height: '100%',
       display: 'block',
     });
+
     el.appendChild(renderer.domElement);
 
     const clock = new THREE.Clock();
+
     const resize = () => {
       const width = el.clientWidth || 1;
       const height = el.clientHeight || 1;
+
       renderer.setSize(width, height, false);
       material.uniforms.uCanvas.value.set(width, height);
     };
+
     resize();
 
     if (typeof ResizeObserver !== 'undefined') {
@@ -142,38 +150,52 @@ export default function ColorBends({
     const loop = () => {
       const deltaTime = clock.getDelta();
       const elapsedTime = clock.elapsedTime;
+
       material.uniforms.uTime.value = elapsedTime;
+
       const radians =
-        (((rotationRef.current % 360) + autoRotateRef.current * elapsedTime) *
+        (((rotationRef.current % 360) +
+          autoRotateRef.current * elapsedTime) *
           Math.PI) /
         180;
-      material.uniforms.uRot.value.set(Math.cos(radians), Math.sin(radians));
+
+      material.uniforms.uRot.value.set(
+        Math.cos(radians),
+        Math.sin(radians),
+      );
+
       pointerCurrentRef.current.lerp(
         pointerTargetRef.current,
         Math.min(1, deltaTime * 8),
       );
+
       material.uniforms.uPointer.value.copy(pointerCurrentRef.current);
       renderer.render(scene, camera);
       animationFrameRef.current = requestAnimationFrame(loop);
     };
+
     animationFrameRef.current = requestAnimationFrame(loop);
 
     return () => {
       if (animationFrameRef.current !== null) {
         cancelAnimationFrame(animationFrameRef.current);
       }
+
       if (resizeObserverRef.current) {
         resizeObserverRef.current.disconnect();
       } else {
         window.removeEventListener('resize', resize);
       }
+
       geometry.dispose();
       material.dispose();
       renderer.dispose();
       renderer.forceContextLoss();
+
       if (renderer.domElement.parentNode === el) {
         el.removeChild(renderer.domElement);
       }
+
       materialRef.current = null;
       rendererRef.current = null;
     };
@@ -194,6 +216,7 @@ export default function ColorBends({
   useEffect(() => {
     const material = materialRef.current;
     const renderer = rendererRef.current;
+
     if (!material) return;
 
     rotationRef.current = rotation;
@@ -216,8 +239,13 @@ export default function ColorBends({
 
     for (let index = 0; index < MAX_COLORS; index += 1) {
       const color = parsedColors[index];
+
       if (color) {
-        material.uniforms.uColors.value[index].set(color.r, color.g, color.b);
+        material.uniforms.uColors.value[index].set(
+          color.r,
+          color.g,
+          color.b,
+        );
       } else {
         material.uniforms.uColors.value[index].set(0, 0, 0);
       }
@@ -225,6 +253,7 @@ export default function ColorBends({
 
     material.uniforms.uColorCount.value = parsedColors.length;
     material.uniforms.uTransparent.value = transparent ? 1 : 0;
+
     if (renderer) {
       renderer.setClearColor(0, transparent ? 0 : 1);
     }
@@ -251,6 +280,7 @@ export default function ColorBends({
 
     const move = (event: PointerEvent) => {
       const bounds = el.getBoundingClientRect();
+
       pointerTargetRef.current.set(
         ((event.clientX - bounds.left) / (bounds.width || 1)) * 2 - 1,
         -(((event.clientY - bounds.top) / (bounds.height || 1)) * 2 - 1),
@@ -258,7 +288,10 @@ export default function ColorBends({
     };
 
     el.addEventListener('pointermove', move);
-    return () => el.removeEventListener('pointermove', move);
+
+    return () => {
+      el.removeEventListener('pointermove', move);
+    };
   }, []);
 
   return (
